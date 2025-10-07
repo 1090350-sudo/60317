@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>原神元素戰鬥遊戲</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #a8c0ff, #3f55a1);
+            font-family: 'Noto Sans TC', sans-serif;
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            background-color: #1a1a2e;
+            border: 5px solid #fff;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            cursor: crosshair;
+            display: block;
+        }
+
+        #game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        #game-info .info-block {
+            padding: 10px 20px;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .skill-bar {
+            display: flex;
+            margin-top: 20px;
+            gap: 15px;
+        }
+
+        .skill-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #fff;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .skill-icon:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .skill-icon.on-cooldown {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .skill-icon .cooldown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            transition: height 0.1s ease-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .skill-icon span {
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
+        
+        .fire-element { background: linear-gradient(135deg, #ff6b6b, #ee2e2e); }
+        .water-element { background: linear-gradient(135deg, #6b8eff, #2e66ee); }
+        .electro-element { background: linear-gradient(135deg, #d4a3ff, #8a4ed4); }
+        .ice-element { background: linear-gradient(135deg, #a3f7ff, #4ed0d4); }
+        .anemo-element { background: linear-gradient(135deg, #60f2c4, #27ae60); }
+        .geo-element { background: linear-gradient(135deg, #ffd966, #e67e22); }
+        .explosion {
+            animation: explode 0.5s ease-out;
+            opacity: 0;
+            position: absolute;
+            z-index: 10;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .game-over-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+
+        .modal-content {
+            background-color: #2c3e50;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-content h2 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #e74c3c;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content p {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+        }
+
+        .restart-button {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .restart-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6);
+        }
+        
+        .artifact-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            font-size: 1em;
+        }
+        
+        .intro-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            padding: 20px;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .intro-modal h2 {
+            font-size: 2.5em;
+            color: #f39c12;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .intro-modal p {
+            font-size: 1.5em;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+        
+        .intro-modal button {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+        
+        .intro-modal button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="intro-modal" id="introModal">
+        <h2>歡迎來到提瓦特大陸！</h2>
+        <p>這是一個名為提瓦特的奇幻世界，你是一位「旅行者」，為了尋找失散的雙胞胎兄妹而踏上旅程。</p>
+        <p>在旅途中，你將遇到神秘的同伴派蒙，並與各種元素史萊姆戰鬥，不斷成長！</p>
+        <p>準備好開始你的冒險了嗎？</p>
+        <button onclick="startGame()">開始旅程</button>
+    </div>
+
+    <div class="game-container">
+        <h1>原神元素戰鬥</h1>
+        <canvas id="gameCanvas"></canvas>
+        <div id="game-info">
+            <div id="hp-display" class="info-block">生命值: 100</div>
+            <div id="score-display" class="info-block">分數: 0</div>
+            <div id="level-display" class="info-block">
+                等級: 1<br>
+                經驗: 0 / 100
+            </div>
+        </div>
+        <div class="skill-bar">
+            <div class="skill-icon fire-element" data-element="fire" data-key="Q">
+                🔥<span>Q</span>
+                <div class="cooldown-overlay" style="height: 0;"></div>
+            </div>
+            <div class="skill-icon water-element" data-element="water" data-key="E">
+                💧<span>E</span>
+                <div class="cooldown-overlay" style="height: 0;"></div>
+            </div>
+            <div class="skill-icon electro-element" data-element="electro" data-key="R">
+                ⚡️<span>R</span>
+                <div class="cooldown-overlay" style="height: 0;"></div>
+            </div>
+            <div class="skill-icon ice-element" data-element="ice" data-key="T">
+                ❄️<span>T</span>
+                <div class="cooldown-overlay" style="height: 0;"></div>
+            </div>
+            <div class="skill-icon anemo-element" data-element="anemo" data-key="G">
+                🌪️<span>G</span>
+                <div class="cooldown-overlay" style="height: 0;"></div>
+            </div>
+            <div class="skill-icon geo-element" data-element="geo" data-key="H">
+                🪨<span>H</span>
+                <div class="cooldown-overlay" style="height: 0;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="artifact-display" class="artifact-display">
+        已裝備聖遺物: 無
+    </div>
+
+    <div class="game-over-modal">
+        <div class="modal-content">
+            <h2>遊戲結束</h2>
+            <p id="final-score">你的分數是: 0</p>
+            <button class="restart-button" onclick="restartGame()">重新開始</button>
+        </div>
+    </div>
+
+    <script>
+        // 遊戲主體
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 800;
+        canvas.height = 600;
+
+        const hpDisplay = document.getElementById('hp-display');
+        const scoreDisplay = document.getElementById('score-display');
+        const levelDisplay = document.getElementById('level-display');
+        const artifactDisplay = document.getElementById('artifact-display');
+        const gameOverModal = document.querySelector('.game-over-modal');
+        const finalScoreText = document.getElementById('final-score');
+        const skillIcons = document.querySelectorAll('.skill-icon');
+        const introModal = document.getElementById('introModal');
+
+        let score = 0;
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            width: 40,
+            height: 40,
+            speed: 5,
+            hp: 100,
+            color: '#c0c0c0',
+            level: 1,
+            exp: 0,
+            expToNextLevel: 100,
+            artifacts: []
+        };
+
+        let enemies = [];
+        let projectiles = [];
+        let particles = [];
+        let keys = {};
+        let gameLoopId;
+        let isGameOver = true;
+        let projectileDamage = 20;
+
+        // 技能冷卻系統
+        const cooldowns = {
+            fire: 2000,
+            water: 2000,
+            electro: 2000,
+            ice: 2000,
+            anemo: 3000,
+            geo: 3000
+        };
+        const lastUsed = {
+            fire: 0,
+            water: 0,
+            electro: 0,
+            ice: 0,
+            anemo: 0,
+            geo: 0
+        };
+        
+        // 元素效果
+        const elementalEffects = {
+            fire: '🔥',
+            water: '💧',
+            electro: '⚡️',
+            ice: '❄️',
+            anemo: '🌪️',
+            geo: '🪨'
+        };
+
+        const elements = ['fire', 'water', 'electro', 'ice', 'anemo', 'geo'];
+
+        // 聖遺物/武器系統
+        const artifacts = [
+            { name: "攻擊力聖遺物", effect: "damageBoost" },
+            { name: "生命值聖遺物", effect: "hpBoost" },
+            { name: "暴擊聖遺物", effect: "critChance" }
+        ];
+
+        // 敵人生成間隔
+        let enemySpawnInterval = 1000;
+        let lastSpawnTime = 0;
+
+        // 玩家輸入處理
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            // 處理技能施放
+            if (!isGameOver) {
+                const now = Date.now();
+                switch (e.key.toUpperCase()) {
+                    case 'Q':
+                        if (now - lastUsed.fire >= cooldowns.fire) {
+                            shootProjectile('fire');
+                            lastUsed.fire = now;
+                        }
+                        break;
+                    case 'E':
+                        if (now - lastUsed.water >= cooldowns.water) {
+                            shootProjectile('water');
+                            lastUsed.water = now;
+                        }
+                        break;
+                    case 'R':
+                        if (now - lastUsed.electro >= cooldowns.electro) {
+                            shootProjectile('electro');
+                            lastUsed.electro = now;
+                        }
+                        break;
+                    case 'T':
+                        if (now - lastUsed.ice >= cooldowns.ice) {
+                            shootProjectile('ice');
+                            lastUsed.ice = now;
+                        }
+                        break;
+                    case 'G':
+                        if (now - lastUsed.anemo >= cooldowns.anemo) {
+                            shootProjectile('anemo');
+                            lastUsed.anemo = now;
+                        }
+                        break;
+                    case 'H':
+                        if (now - lastUsed.geo >= cooldowns.geo) {
+                            shootProjectile('geo');
+                            lastUsed.geo = now;
+                        }
+                        break;
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // 處理 UI 技能點擊
+        skillIcons.forEach(icon => {
+            icon.addEventListener('click', () => {
+                if (!isGameOver && !icon.classList.contains('on-cooldown')) {
+                    const now = Date.now();
+                    const element = icon.dataset.element;
+                    if (now - lastUsed[element] >= cooldowns[element]) {
+                        shootProjectile(element);
+                        lastUsed[element] = now;
+                    }
+                }
+            });
+        });
+        
+        // 點擊畫布攻擊
+        canvas.addEventListener('click', (e) => {
+            if (!isGameOver) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                shootProjectile('fire', { x: mouseX, y: mouseY });
+            }
+        });
+
+        // 射出元素子彈
+        function shootProjectile(element, target = null) {
+            let baseDamage = projectileDamage;
+            if (player.artifacts.some(a => a.effect === 'damageBoost')) {
+                baseDamage *= 1.2;
+            }
+            if (player.artifacts.some(a => a.effect === 'critChance') && Math.random() < 0.2) {
+                baseDamage *= 2; // 20% 暴擊率
+            }
+            
+            const projectile = {
+                x: player.x,
+                y: player.y,
+                size: 10,
+                speed: 7,
+                element: element,
+                effect: elementalEffects[element],
+                color: getElementColor(element),
+                damage: baseDamage,
+                // 新增目標方向
+                targetX: target ? target.x : player.x,
+                targetY: target ? target.y : 0
+            };
+            
+            // 計算子彈方向向量
+            const angle = Math.atan2(projectile.targetY - projectile.y, projectile.targetX - projectile.x);
+            projectile.vx = projectile.speed * Math.cos(angle);
+            projectile.vy = projectile.speed * Math.sin(angle);
+            
+            projectiles.push(projectile);
+        }
+
+        // 獲取元素顏色
+        function getElementColor(element) {
+            switch (element) {
+                case 'fire': return '#ff6b6b';
+                case 'water': return '#6b8eff';
+                case 'electro': return '#d4a3ff';
+                case 'ice': return '#a3f7ff';
+                case 'anemo': return '#60f2c4';
+                case 'geo': return '#ffd966';
+                default: return '#fff';
+            }
+        }
+
+        // 敵人類別
+        function Enemy() {
+            this.x = Math.random() * canvas.width;
+            this.y = 0;
+            this.size = 30;
+            this.speed = 1 + Math.random();
+            this.hp = 100;
+            this.element = getRandomEnemyElement();
+            this.effect = elementalEffects[this.element];
+            this.color = getElementColor(this.element);
+            this.status = null;
+        }
+
+        // 隨機生成敵人元素
+        function getRandomEnemyElement() {
+            return elements[Math.floor(Math.random() * elements.length)];
+        }
+
+        // 繪製
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 繪製玩家
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x - player.width / 2, player.y - player.height / 2, player.width, player.height);
+
+            // 繪製子彈
+            projectiles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            });
+
+            // 繪製敵人
+            enemies.forEach(enemy => {
+                ctx.fillStyle = enemy.color;
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+                
+                // 繪製敵人頭上的元素標記
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(enemy.effect, enemy.x, enemy.y - enemy.size - 5);
+
+                // 繪製敵人生命條
+                const hpBarWidth = enemy.size * 2;
+                const hpBarHeight = 5;
+                ctx.fillStyle = '#ff4d4d';
+                ctx.fillRect(enemy.x - hpBarWidth / 2, enemy.y - enemy.size - 20, hpBarWidth, hpBarHeight);
+                ctx.fillStyle = '#4dff4d';
+                ctx.fillRect(enemy.x - hpBarWidth / 2, enemy.y - enemy.size - 20, hpBarWidth * (enemy.hp / 100), hpBarHeight);
+            });
+
+            // 繪製粒子效果
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        // 更新遊戲狀態
+        function update() {
+            // 更新玩家位置
+            if (keys['w'] || keys['W'] || keys['ArrowUp']) player.y -= player.speed;
+            if (keys['s'] || keys['S'] || keys['ArrowDown']) player.y += player.speed;
+            if (keys['a'] || keys['A'] || keys['ArrowLeft']) player.x -= player.speed;
+            if (keys['d'] || keys['D'] || keys['ArrowRight']) player.x += player.speed;
+            
+            // 邊界檢查
+            if (player.x - player.width / 2 < 0) player.x = player.width / 2;
+            if (player.x + player.width / 2 > canvas.width) player.x = canvas.width - player.width / 2;
+            if (player.y - player.height / 2 < 0) player.y = player.height / 2;
+            if (player.y + player.height / 2 > canvas.height) player.y = canvas.height - player.height / 2;
+
+            // 生成敵人
+            const now = Date.now();
+            if (now - lastSpawnTime > enemySpawnInterval) {
+                enemies.push(new Enemy());
+                lastSpawnTime = now;
+            }
+
+            // 更新子彈位置和碰撞
+            projectiles.forEach((p, pIndex) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                
+                // 移除超出畫布的子彈
+                if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
+                    projectiles.splice(pIndex, 1);
+                    return;
+                }
+
+                enemies.forEach((enemy, eIndex) => {
+                    // 碰撞檢測
+                    const distance = Math.sqrt(Math.pow(p.x - enemy.x, 2) + Math.pow(p.y - enemy.y, 2));
+                    if (distance < p.size + enemy.size) {
+                        let damage = p.damage;
+                        let reactionHappened = false;
+                        let reactionElement = null;
+                        
+                        // 處理元素反應
+                        if (p.element === 'fire' && (enemy.element === 'water' || enemy.element === 'ice')) {
+                            damage *= 1.5;
+                            reactionHappened = true;
+                        } else if (p.element === 'fire' && enemy.element === 'electro') {
+                            damage *= 1.2;
+                            damage += 10;
+                            createExplosion(enemy.x, enemy.y, getElementColor('fire'));
+                            reactionHappened = true;
+                        } else if (p.element === 'water' && enemy.element === 'electro') {
+                            damage *= 1.1;
+                            enemy.status = 'electro-charged';
+                            reactionHappened = true;
+                        } else if (p.element === 'anemo' && enemy.element !== 'anemo' && enemy.element !== 'geo') {
+                            // 擴散（Swirl）
+                            damage *= 1.2;
+                            reactionHappened = true;
+                            // 擴散效果：對附近敵人造成擴散傷害
+                            enemies.forEach(otherEnemy => {
+                                if (otherEnemy !== enemy) {
+                                    const otherDistance = Math.sqrt(Math.pow(enemy.x - otherEnemy.x, 2) + Math.pow(enemy.y - otherEnemy.y, 2));
+                                    if (otherDistance < 100) {
+                                        otherEnemy.hp -= 10;
+                                        createExplosion(otherEnemy.x, otherEnemy.y, getElementColor(enemy.element));
+                                    }
+                                }
+                            });
+                        } else if (p.element === 'geo' && enemy.element !== 'geo') {
+                            // 結晶（Crystallize）
+                            damage *= 1.1;
+                            reactionHappened = true;
+                            // 結晶效果：暫時減少敵人傷害
+                            enemy.speed *= 0.5;
+                            setTimeout(() => {
+                                enemy.speed /= 0.5;
+                            }, 3000);
+                        }
+                        
+                        enemy.hp -= damage;
+                        
+                        // 產生打擊粒子
+                        for(let i = 0; i < 5; i++) {
+                            particles.push(new Particle(p.x, p.y, getElementColor(p.element)));
+                        }
+                        
+                        // 移除子彈
+                        projectiles.splice(pIndex, 1);
+
+                        // 移除敵人
+                        if (enemy.hp <= 0) {
+                            enemies.splice(eIndex, 1);
+                            score += 10;
+                            player.exp += 15;
+                            checkLevelUp();
+                            // 增加遊戲難度
+                            enemySpawnInterval = Math.max(200, enemySpawnInterval - 10);
+                        }
+                    }
+                });
+            });
+
+            // 更新敵人位置和碰撞玩家
+            enemies.forEach((enemy, eIndex) => {
+                enemy.y += enemy.speed;
+                // 處理感電狀態
+                if (enemy.status === 'electro-charged') {
+                    enemy.hp -= 0.1;
+                }
+
+                // 敵人到達底部
+                if (enemy.y > canvas.height) {
+                    enemies.splice(eIndex, 1);
+                    player.hp -= 10;
+                }
+                
+                // 敵人與玩家碰撞
+                const distance = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
+                if (distance < player.width / 2 + enemy.size) {
+                    player.hp -= 20;
+                    enemies.splice(eIndex, 1);
+                }
+            });
+            
+            // 更新粒子
+            particles.forEach((p, pIndex) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.01;
+                if (p.alpha <= 0) {
+                    particles.splice(pIndex, 1);
+                }
+            });
+
+            // 更新 UI
+            hpDisplay.textContent = `生命值: ${Math.max(0, player.hp)}`;
+            scoreDisplay.textContent = `分數: ${score}`;
+            levelDisplay.innerHTML = `等級: ${player.level}<br>經驗: ${player.exp} / ${player.expToNextLevel}`;
+            updateSkillCooldowns();
+            
+            // 檢查遊戲結束
+            if (player.hp <= 0) {
+                endGame();
+            }
+        }
+
+        // 檢查玩家是否升級
+        function checkLevelUp() {
+            if (player.exp >= player.expToNextLevel) {
+                player.exp -= player.expToNextLevel;
+                player.level++;
+                player.expToNextLevel += 50;
+                projectileDamage += 5; // 升級增加傷害
+                if (player.level % 2 === 0) { // 每2級獲得一個聖遺物
+                    const newArtifact = artifacts[Math.floor(Math.random() * artifacts.length)];
+                    player.artifacts.push(newArtifact);
+                    updateArtifactUI();
+                }
+            }
+        }
+
+        // 更新聖遺物 UI
+        function updateArtifactUI() {
+            if (player.artifacts.length === 0) {
+                artifactDisplay.innerHTML = "已裝備聖遺物: 無";
+            } else {
+                const names = player.artifacts.map(a => a.name).join(' + ');
+                artifactDisplay.innerHTML = `已裝備聖遺物: ${names}`;
+            }
+        }
+
+
+        // 粒子類別
+        function Particle(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.radius = Math.random() * 3 + 1;
+            this.color = color;
+            this.vx = (Math.random() - 0.5) * 2;
+            this.vy = (Math.random() - 0.5) * 2;
+            this.alpha = 1;
+        }
+
+        // 創建爆炸效果
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        // 更新技能冷卻 UI
+        function updateSkillCooldowns() {
+            const now = Date.now();
+            skillIcons.forEach(icon => {
+                const element = icon.dataset.element;
+                const overlay = icon.querySelector('.cooldown-overlay');
+                const timePassed = now - lastUsed[element];
+                const cooldownTime = cooldowns[element];
+
+                if (timePassed < cooldownTime) {
+                    icon.classList.add('on-cooldown');
+                    const remainingTime = Math.ceil((cooldownTime - timePassed) / 1000);
+                    const percentage = (timePassed / cooldownTime) * 100;
+                    overlay.style.height = `${100 - percentage}%`;
+                    overlay.textContent = remainingTime > 0 ? remainingTime : '';
+                } else {
+                    icon.classList.remove('on-cooldown');
+                    overlay.style.height = '0%';
+                    overlay.textContent = '';
+                }
+            });
+        }
+
+        // 遊戲主循環
+        function gameLoop() {
+            draw();
+            update();
+            if (!isGameOver) {
+                gameLoopId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // 結束遊戲
+        function endGame() {
+            isGameOver = true;
+            cancelAnimationFrame(gameLoopId);
+            finalScoreText.textContent = `你的分數是: ${score}`;
+            gameOverModal.style.display = 'flex';
+        }
+
+        // 重新開始遊戲
+        function restartGame() {
+            isGameOver = false;
+            player.hp = 100;
+            score = 0;
+            player.level = 1;
+            player.exp = 0;
+            player.expToNextLevel = 100;
+            player.artifacts = [];
+            enemies = [];
+            projectiles = [];
+            particles = [];
+            enemySpawnInterval = 1000;
+            lastSpawnTime = 0;
+            projectileDamage = 20;
+            for (const key in lastUsed) {
+                lastUsed[key] = 0;
+            }
+            gameOverModal.style.display = 'none';
+            updateArtifactUI();
+            gameLoop();
+        }
+        
+        function startGame() {
+            introModal.style.display = 'none';
+            isGameOver = false;
+            restartGame();
+        }
+
+    </script>
+</body>
+</html>
